@@ -197,9 +197,8 @@ class PlayerGroupModal(discord.ui.Modal, title="Player Lookup"):
             embed = discord.Embed(
                 title="Player Group Lookup",
                 colour=discord.Colour.green(),
-                url=f"{Config.DISCORD_BOT_BASE_WEBSITE_URL}/players/{rsn}",
             )
-            embed.add_field(name="Player", value=rsn)
+            embed.add_field(name="Player", value=f"[{rsn}]({Config.DISCORD_BOT_BASE_WEBSITE_URL}/players/{rsn})")
             embed.add_field(name="Group", value=str(data["name"]))
             embed.add_field(
                 name="Group ID",
@@ -261,6 +260,26 @@ class ApproveDenyPlayerRemoveRequest(discord.ui.View):
             )
             return
 
+        view = utils.ConfirmationView()
+
+        verify_embed = discord.Embed(title="Verify Action", color=discord.Color.blue())
+        verify_embed.add_field(
+            name="",
+            value="Are you sure you wish you perform this action?",
+            inline=False,
+        )
+
+        await interaction.followup.send(
+            embed=verify_embed,
+            view=view,
+            ephemeral=True,
+        )
+
+        await view.wait()
+
+        if not view.value:
+            return
+
         rsn = self.rsn or _get_embed_field_value(interaction.message, 0)
         group_id = self.group_id or _parse_group_id(_get_embed_field_value(interaction.message, 2))
         group_name = self.group_name or _get_embed_field_value(interaction.message, 1) or "Unknown"
@@ -284,6 +303,27 @@ class ApproveDenyPlayerRemoveRequest(discord.ui.View):
         embed.add_field(name="Group ID", value=group_id)
         embed.add_field(name="Group Name", value=group_name)
         await interaction.followup.send(embed=embed)
+
+        channel = await _get_ticket_channel(interaction)
+        if channel is None:
+            return
+
+        ticket_user = await utils.get_user_by_original_message(channel)
+        if not isinstance(ticket_user, discord.Member):
+            await interaction.followup.send(
+                "Could not determine the ticket owner.",
+                ephemeral=True,
+                )
+            return
+
+        await utils.send_log_message(
+            interaction,
+            f"Group: [{group_id}]({Config.DISCORD_BOT_BASE_WEBSITE_URL}/groups/{group_id})\n"
+            f"Username: {rsn}\n"
+            f"Verified by: {ticket_user.mention}, `{ticket_user.id}`, `{ticket_user.name}`",
+            title="Removed User From Group",
+            mod=interaction.user,
+        )
 
 
 class ApproveDenyGroupRequest(discord.ui.View):
@@ -311,6 +351,26 @@ class ApproveDenyGroupRequest(discord.ui.View):
                 await _build_group_lookup_permission_message(interaction),
                 ephemeral=True,
             )
+            return
+
+        view = utils.ConfirmationView()
+
+        verify_embed = discord.Embed(title="Verify Action", color=discord.Color.blue())
+        verify_embed.add_field(
+            name="",
+            value="Are you sure you wish you perform this action?",
+            inline=False,
+        )
+
+        await interaction.followup.send(
+            embed=verify_embed,
+            view=view,
+            ephemeral=True,
+        )
+
+        await view.wait()
+
+        if not view.value:
             return
 
         channel = await _get_ticket_channel(interaction)
@@ -381,6 +441,25 @@ class ApproveDenyGroupRequest(discord.ui.View):
                 await _build_group_lookup_permission_message(interaction),
                 ephemeral=True,
             )
+            return
+
+        view = utils.ConfirmationView()
+
+        verify_embed = discord.Embed(title="Verify Action", color=discord.Color.blue())
+        verify_embed.add_field(
+            name="",
+            value="Are you sure you wish you perform this action?",
+            inline=False,
+        )
+
+        await interaction.followup.send(
+            embed=verify_embed,
+            view=view,
+            ephemeral=True,
+        )
+        await view.wait()
+
+        if not view.value:
             return
 
         group_id = self.group_id or _parse_group_id(_get_embed_field_value(interaction.message, 0))

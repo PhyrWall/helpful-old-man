@@ -14,6 +14,8 @@ from hom.config import Config
 from hom.config import Constants
 
 __all__ = (
+    "ConfirmationView",
+    "ViewT",
     "archive_channel_messages",
     "build_support_embed",
     "create_ticket_for_user",
@@ -374,3 +376,59 @@ def set_flag(username: str, country: str) -> requests.models.Response:
     }
     response = requests.put(url, headers=headers, json=json)
     return response
+
+
+class ConfirmationView(discord.ui.View):
+    def __init__(self) -> None:
+        super().__init__(timeout=180)
+        self.value: t.Optional[bool] = None
+
+    async def interaction_check(
+        self,
+        interaction: discord.Interaction[discord.Client],
+    ) -> bool:
+        if isinstance(interaction.user, discord.Member) and any(
+            role.id == Config.MOD_ROLE for role in interaction.user.roles
+        ):
+            return True
+
+        await interaction.response.send_message(
+            f"{Constants.DENIED} You do not have permission to use this.",
+            ephemeral=True,
+        )
+
+        return False
+
+    @discord.ui.button(label="Confirm", style=discord.ButtonStyle.green)
+    async def confirm(
+        self,
+        interaction: discord.Interaction[commands.Bot],
+        button: discord.ui.Button["ConfirmationView"],
+    ) -> None:
+        self.value = True
+
+        embed = discord.Embed(
+            title="Verify Action",
+            description="Action has been confirmed.",
+            color=discord.Color.green(),
+        )
+
+        await interaction.response.edit_message(embed=embed, view=None)
+        self.stop()
+
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.red)
+    async def cancel(
+        self,
+        interaction: discord.Interaction[commands.Bot],
+        button: discord.ui.Button["ConfirmationView"],
+    ) -> None:
+        self.value = False
+
+        embed = discord.Embed(
+            title="Verify Action",
+            description="Action has been cancelled.",
+            color=discord.Color.red(),
+        )
+
+        await interaction.response.edit_message(embed=embed, view=None)
+        self.stop()
